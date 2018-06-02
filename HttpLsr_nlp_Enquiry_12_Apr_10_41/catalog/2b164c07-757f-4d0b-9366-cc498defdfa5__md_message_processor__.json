@@ -1,0 +1,22 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "SalesForceRequest"
+        },
+        "flowVariables": {
+            "incomingMessage": {
+                "connectorName": "Salesforce__Basic_Authentication",
+                "typeId": "Account"
+            },
+            "SalesForceRequest": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "SalesForceRequest"
+            },
+            "uuid": {}
+        }
+    },
+    "outputMessageMetadata": {},
+    "id": "2b164c07-757f-4d0b-9366-cc498defdfa5",
+    "version": "5.2.0.0"
+}

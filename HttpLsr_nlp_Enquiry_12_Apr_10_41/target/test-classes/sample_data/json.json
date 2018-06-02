@@ -1,0 +1,40 @@
+{
+  "id": "????",
+  "timestamp": "????",
+  "lang": "????",
+  "result": {
+    "source": "????",
+    "resolvedQuery": "????",
+    "action": "????",
+    "actionIncomplete": true,
+    "parameters": {
+      "address": "????",
+      "date-period": "????",
+      "time": "????",
+      "type": "????"
+    },
+    "contexts": [
+      "????"
+    ],
+    "metadata": {
+      "intentId": "????",
+      "webhookUsed": "????",
+      "webhookForSlotFillingUsed": "????",
+      "intentName": "????"
+    },
+    "fulfillment": {
+      "speech": "????",
+      "messages": [
+        {
+          
+        }
+      ]
+    },
+    "score": 1
+  },
+  "status": {
+    "code": 1,
+    "errorType": "????"
+  },
+  "sessionId": "????"
+}

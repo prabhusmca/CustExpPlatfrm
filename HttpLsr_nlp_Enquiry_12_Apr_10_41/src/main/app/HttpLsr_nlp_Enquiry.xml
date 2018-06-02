@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:json="http://www.mulesoft.org/schema/mule/json" xmlns:sfdc="http://www.mulesoft.org/schema/mule/sfdc" xmlns:tls="http://www.mulesoft.org/schema/mule/tls" xmlns:objectstore="http://www.mulesoft.org/schema/mule/objectstore"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" 
+	xmlns:tracking="http://www.mulesoft.org/schema/mule/ee/tracking" 
+	xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	 xmlns:metadata="http://www.mulesoft.org/schema/mule/metadata" 
+	  xmlns="http://www.mulesoft.org/schema/mule/core" 
+	  xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.mulesoft.org/schema/mule/objectstore http://www.mulesoft.org/schema/mule/objectstore/current/mule-objectstore.xsd
+http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd
+http://www.mulesoft.org/schema/mule/ee/tracking http://www.mulesoft.org/schema/mule/ee/tracking/current/mule-tracking-ee.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/sfdc http://www.mulesoft.org/schema/mule/sfdc/current/mule-sfdc.xsd
+http://www.mulesoft.org/schema/mule/json http://www.mulesoft.org/schema/mule/json/current/mule-json.xsd">
+
+    <http:request-config name="HTTP_Request_Configuration_Enquiry" protocol="HTTPS" host="api.api.ai" basePath="/v1" port="443" doc:name="HTTP Request Configuration"/>
+    <objectstore:config name="ObjectStore__Connector_config" entryTtl="600000" expirationInterval="10000" maxEntries="10000" persistent="true" doc:name="ObjectStore: Connector" partition="apiAiSessionId"/>
+    <sfdc:config name="Salesforce__Basic_Authentication" username="ps00349902@techmahindra.com" password="Mar123!@#" securityToken="uzmCKwxDMqbxPV0wm8p1x1h7" doc:name="Salesforce: Basic Authentication"/>
+    <http:listener-config name="HTTP_Listener_Configuration" host="localhost" port="8081" doc:name="HTTP Listener Configuration"/>
+    <flow name="slackbot_nlp_MainFlow">
+        <http:listener config-ref="HTTP_Listener_Configuration" path="/httpnlp/Enquiry" doc:name="HTTP"/>
+        <json:json-to-object-transformer returnClass="java.util.HashMap" ignoreBadInput="true" doc:name="JSON to Object"/>
+        <flow-ref name="SF_ToInvoke_DialogFlow_SalesFore_Enquiry" doc:name="Flow Reference"/>
+    </flow>
+    <sub-flow name="SF_ToInvoke_DialogFlow_SalesFore_Enquiry">
+        <logger message="Message from Received" level="INFO" doc:name="Logger" doc:description="Message from Received"/>
+        <dw:transform-message doc:name="Capture incoming message" metadata:id="e5b940cc-477d-43a4-8ef3-6ed01943c623">
+            <dw:input-payload mimeType="application/java" doc:sample="sample_data\IncomingMessage.dwl"/>
+            <dw:set-variable variableName="incomingMessage"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	Source: payload.Source,
+	UniqueId: payload.UniqueId,
+	Category: payload.Category,
+	UserName: payload.UserName,
+	Text: payload.Text
+}]]></dw:set-variable>
+        </dw:transform-message>
+        <set-variable variableName="uuid" value="#[message.inboundProperties.uuid]" doc:name="Variable"/>
+        <objectstore:contains config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName]" doc:name="Check if user has a session"/>
+        <logger message="Checking if the user has session" level="INFO" doc:name="Logger"/>
+        <choice doc:name="Choice">
+            <when expression="#[payload == true]">
+                <logger message="User has Exsting Session" level="INFO" category="SESSION_INFO" doc:name="Existing Session Log"/>
+                <objectstore:retrieve config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName]" doc:name="Retrieve the existing sesssionId"/>
+                <set-variable variableName="sessionId" value="#[payload.toString()]" doc:name="Set SessionID"/>
+                <objectstore:contains config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName+flowVars.sessionId]" doc:name="Check for ChatHistory"/>
+                <choice doc:name="Choice">
+                    <when expression="#[payload == true]">
+                        <objectstore:retrieve config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName+flowVars.sessionId]" doc:name="RetrieveChatForUser"/>
+                        <set-variable variableName="ChatHistory" value="#[payload.toString()]" doc:name="Variable"/>
+                    </when>
+                    <otherwise>
+                        <logger message="No Chat History to Retrive" level="INFO" doc:name="Logger"/>
+                    </otherwise>
+                </choice>
+            </when>
+            <otherwise>
+                <logger message="Create new Session" level="INFO" category="SESSION_INFO" doc:name="Create Session Log"/>
+                <dw:transform-message doc:name="Create SessionID">
+                    <dw:set-variable variableName="sessionId"><![CDATA[%dw 1.0
+%output application/java
+---
+((1+random) * 100000) as :string {format: "#"}]]></dw:set-variable>
+                </dw:transform-message>
+                <objectstore:store config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName]" value-ref="#[flowVars.sessionId]" overwrite="true" doc:name="Create a session for the user"/>
+            </otherwise>
+        </choice>
+        <dw:transform-message doc:name="Create APIAI Message">
+            <dw:input-payload doc:sample="sample_data/json_1.json"/>
+            <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+    query: flowVars.incomingMessage.Text,
+    sessionId: flowVars.sessionId,
+    lang: "en"
+}]]></dw:set-payload>
+        </dw:transform-message>
+        <http:request config-ref="HTTP_Request_Configuration_Enquiry" path="/query" method="POST" doc:name="Send API.AI raw message for interpretation">
+            <http:request-builder>
+                <http:query-param paramName="v" value="20160101"/>
+                <http:header headerName="Authorization" value="${api.ai.clientToken}"/>
+                <http:header headerName="Content-Type" value="application/json"/>
+
+            </http:request-builder>
+        </http:request>
+        <dw:transform-message doc:name="Capture interpreted parameters" metadata:id="23d9ed82-8ef6-4769-afae-96decca3e139">
+            <dw:input-payload doc:sample="/Users/fernandomelone/Downloads/apiAiProductResponse.json" mimeType="application/json"/>
+            <dw:input-variable doc:sample="sample_data\json.json" variableName="incomingMessage"/>
+            <dw:set-variable variableName="apiAiResponseEnq"><![CDATA[%dw 1.0
+%output application/java
+---
+{
+	intent: payload.result.metadata.intentName,
+	speech: payload.result.fulfillment.speech,
+	complete: payload.result.metadata.endConversation
+}]]></dw:set-variable>
+
+        </dw:transform-message>
+        <choice doc:name="Choice_Enquiry">
+            <when expression="#[flowVars.apiAiResponseEnq.speech == &quot;Thank you. Product details brochure will be shared to your mail id.&quot; &amp;&amp;  flowVars.apiAiResponseEnq.complete == true]">
+                <objectstore:store config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName+flowVars.sessionId]" value-ref="#[flowVars.ChatHistory+&quot;~&quot;+flowVars.inComingMessage.message+&quot;~&quot;+flowVars.apiAiResponseEnq.speech]" overwrite="true" doc:name="ObjectStore"/>
+                <set-variable variableName="SalesForceRequest" value="#[flowVars.ChatHistory+&quot;~&quot;+flowVars.inComingMessage.Text+&quot;~&quot;+flowVars.apiAiResponseEnq.speech]" doc:name="ChatHistory"/>
+                <dw:transform-message doc:name="Transform Message" metadata:id="2b164c07-757f-4d0b-9366-cc498defdfa5">
+                    <dw:input-payload mimeType="application/java"/>
+                    <dw:input-variable mimeType="application/java" variableName="incomingMessage"/>
+                    <dw:input-variable variableName="uuid"/>
+                    <dw:input-variable mimeType="application/java" variableName="SalesForceRequest"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/java
+---
+[{
+	Name: "Products Enquiry",
+	Description: flowVars.SalesForceRequest
+}]]]></dw:set-payload>
+                </dw:transform-message>
+                <sfdc:create config-ref="Salesforce__Basic_Authentication" type="Product2" doc:name="Salesforce">
+                    <sfdc:objects ref="#[payload]"/>
+                </sfdc:create>
+
+                <logger message="Request Sent  to Salesforce" level="INFO" doc:name="Logger"/>
+                <flow-ref name="SF_RemoveObjStoreKey_Enquiry" doc:name="SF_RemoveObjStoreKey"/>
+                <logger message="Conversation Completed" level="INFO" doc:name="Logger"/>
+                <dw:transform-message doc:name="Transform Message" metadata:id="857dc49f-ff89-488c-b796-9b5386981144">
+                    <dw:input-variable mimeType="application/json" variableName="SalesForceRequest"/>
+                    <dw:set-payload><![CDATA[%dw 1.0
+%output application/json
+---
+{
+	speech: flowVars.apiAiResponseEnq.speech
+}]]></dw:set-payload>
+                </dw:transform-message>
+            </when>
+            <otherwise>
+                <logger message="Not Completed, Keep Conversation" level="INFO" doc:name="Not Completed, Keep Conversation"/>
+                <choice doc:name="Choice">
+                    <when expression="flowVars.apiAiResponseEnq.intent != &quot;Default Fallback Intent&quot;">
+                        <objectstore:store config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName+flowVars.sessionId]" value-ref="#[flowVars.ChatHistory+&quot;~&quot;+flowVars.inComingMessage.Text+&quot;~&quot;+flowVars.apiAiResponseEnq.speech]" overwrite="true" doc:name="ObjectStore"/>
+                        <logger message="Stored to the object Store  #[flowVars.incomingMessage.UserName+flowVars.sessionId] : #[flowVars.apiAiResponseEnq.speech]" level="INFO" doc:name="Logger"/>
+                    </when>
+                    <otherwise>
+                        <logger message="API Fallback Response : #[flowVars.apiAiResponseEnq.speech]" level="INFO" doc:name="Logger"/>
+                    </otherwise>
+                </choice>
+            </otherwise>
+        </choice>
+    </sub-flow>
+
+    <flow name="SF_RemoveObjStoreKey_Enquiry" processingStrategy="synchronous">
+        <objectstore:remove config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName]" ignoreNotExists="true" doc:name="Remove User Session"/>
+        <objectstore:remove config-ref="ObjectStore__Connector_config" key="#[flowVars.incomingMessage.UserName+flowVars.sessionId]" ignoreNotExists="true" doc:name="Remove Chat History"/>
+        <logger message="Enquiry Completed" level="INFO" doc:name="Enquiry Completed"/>
+    </flow>
+
+</mule>

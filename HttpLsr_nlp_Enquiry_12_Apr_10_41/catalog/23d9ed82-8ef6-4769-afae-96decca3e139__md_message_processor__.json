@@ -1,0 +1,22 @@
+{
+    "inputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "apiAiProductResponse"
+        }
+    },
+    "outputMessageMetadata": {
+        "flowVariables": {
+            "apiAiResponse": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "apiAiProductResponse"
+            },
+            "apiAiResponseEnq": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "apiAiProductResponse"
+            }
+        }
+    },
+    "id": "23d9ed82-8ef6-4769-afae-96decca3e139",
+    "version": "5.2.0.0"
+}

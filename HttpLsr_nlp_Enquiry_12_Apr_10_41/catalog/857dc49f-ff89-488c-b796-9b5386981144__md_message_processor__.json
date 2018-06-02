@@ -1,0 +1,18 @@
+{
+    "inputMessageMetadata": {
+        "flowVariables": {
+            "SalesForceRequest": {
+                "connectorName": "#_custom_mule_metadata_type_#",
+                "typeId": "apiAiProductResponse"
+            }
+        }
+    },
+    "outputMessageMetadata": {
+        "messagePayload": {
+            "connectorName": "#_custom_mule_metadata_type_#",
+            "typeId": "apiAiProductResponse"
+        }
+    },
+    "id": "857dc49f-ff89-488c-b796-9b5386981144",
+    "version": "5.2.0.0"
+}

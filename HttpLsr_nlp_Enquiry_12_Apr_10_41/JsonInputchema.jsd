@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-04/schema#",
+  "type": "object",
+  "properties": {
+    "Source": {
+      "type": "string"
+    },
+    "UniqueId": {
+      "type": "string"
+    },
+    "Category": {
+      "type": "string"
+    },
+    "UserName": {
+      "type": "string"
+    },
+    "Text": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "Source",
+    "UniqueId",
+    "Category",
+    "UserName",
+    "Text"
+  ]
+}
